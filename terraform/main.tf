@@ -2,11 +2,11 @@
 # Provider
 ############################################
 provider "aws" {
-  region = "us-east-1"     # change if you prefer another region
+  region = "us-east-1"
 }
 
 ############################################
-# VPC + Subnets
+# VPC
 ############################################
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
@@ -14,25 +14,38 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
 }
 
-# Public subnet (ALB)
-resource "aws_subnet" "public" {
+############################################
+# Public subnets (AZ a & AZ b for ALB)
+############################################
+resource "aws_subnet" "public_a" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.1.0/24"
+  availability_zone       = "us-east-1a"
   map_public_ip_on_launch = true
 }
 
+resource "aws_subnet" "public_b" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.3.0/24"
+  availability_zone       = "us-east-1b"
+  map_public_ip_on_launch = true
+}
+
+############################################
 # Private subnet (EC2)
+############################################
 resource "aws_subnet" "private" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.2.0/24"
 }
 
-# Internet gateway for public subnet
+############################################
+# Internet gateway & public route table
+############################################
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
 }
 
-# Public route table → IGW
 resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.main.id
 
@@ -42,35 +55,27 @@ resource "aws_route_table" "public_rt" {
   }
 }
 
-# Associate public subnet with the public RT
-resource "aws_route_table_association" "public_assoc" {
-  subnet_id      = aws_subnet.public.id
+# Associate both public subnets with the public RT
+resource "aws_route_table_association" "public_a_assoc" {
+  subnet_id      = aws_subnet.public_a.id
+  route_table_id = aws_route_table.public_rt.id
+}
+
+resource "aws_route_table_association" "public_b_assoc" {
+  subnet_id      = aws_subnet.public_b.id
   route_table_id = aws_route_table.public_rt.id
 }
 
 ############################################
 # Security groups
 ############################################
-# 80/tcp from Internet to ALB
 resource "aws_security_group" "alb_sg" {
   vpc_id = aws_vpc.main.id
 
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  ingress { from_port = 80 to_port = 80 protocol = "tcp" cidr_blocks = ["0.0.0.0/0"] }
+  egress  { from_port = 0  to_port = 0  protocol = "-1"   cidr_blocks = ["0.0.0.0/0"] }
 }
 
-# 80/tcp only from ALB SG to EC2
 resource "aws_security_group" "ec2_sg" {
   vpc_id = aws_vpc.main.id
 
@@ -80,20 +85,14 @@ resource "aws_security_group" "ec2_sg" {
     protocol        = "tcp"
     security_groups = [aws_security_group.alb_sg.id]
   }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  egress { from_port = 0 to_port = 0 protocol = "-1" cidr_blocks = ["0.0.0.0/0"] }
 }
 
 ############################################
-# EC2 in private subnet
+# EC2 instance (private subnet)
 ############################################
 resource "aws_instance" "nginx" {
-  ami                    = "ami-0c2b8ca1dad447f8a"        # Amazon Linux 2 (us-east-1)
+  ami                    = "ami-0c2b8ca1dad447f8a"   # Amazon Linux 2 (us-east-1)
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.private.id
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
@@ -115,7 +114,7 @@ resource "aws_instance" "nginx" {
 resource "aws_lb" "alb" {
   name               = "nginx-alb"
   load_balancer_type = "application"
-  subnets            = [aws_subnet.public.id]
+  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]   # 2 AZs!
   security_groups    = [aws_security_group.alb_sg.id]
 }
 
