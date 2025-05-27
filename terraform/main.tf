@@ -1,3 +1,6 @@
+
+
+
 ############################################
 # Provider
 ############################################
@@ -37,7 +40,10 @@ resource "aws_subnet" "public_b" {
 resource "aws_subnet" "private" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.2.0/24"
+  availability_zone       = "us-east-1a"
+  map_public_ip_on_launch = false
 }
+
 
 ############################################
 # Internet gateway & public route table
@@ -66,16 +72,65 @@ resource "aws_route_table_association" "public_b_assoc" {
   route_table_id = aws_route_table.public_rt.id
 }
 
+
 ############################################
-# Security groups
+# NAT Gateway for private subnet egress
+############################################
+# Elastic IP (required for NAT GW)
+resource "aws_eip" "nat_eip" {
+  vpc = true
+}
+
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id     = aws_subnet.public_a.id   # put NAT in one public subnet
+  depends_on    = [aws_internet_gateway.igw]
+}
+
+# Route private subnet → NAT
+resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
+}
+
+resource "aws_route_table_association" "private_assoc" {
+  subnet_id      = aws_subnet.private.id
+  route_table_id = aws_route_table.private_rt.id
+}
+
+
+############################################
+# Security group for ALB (public HTTP 80)
 ############################################
 resource "aws_security_group" "alb_sg" {
   vpc_id = aws_vpc.main.id
 
-  ingress { from_port = 80 to_port = 80 protocol = "tcp" cidr_blocks = ["0.0.0.0/0"] }
-  egress  { from_port = 0  to_port = 0  protocol = "-1"   cidr_blocks = ["0.0.0.0/0"] }
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
+
+
+
+
+############################################
+# Security group for EC2 (allows traffic only from ALB)
+############################################
 resource "aws_security_group" "ec2_sg" {
   vpc_id = aws_vpc.main.id
 
@@ -85,9 +140,15 @@ resource "aws_security_group" "ec2_sg" {
     protocol        = "tcp"
     security_groups = [aws_security_group.alb_sg.id]
   }
-  egress { from_port = 0 to_port = 0 protocol = "-1" cidr_blocks = ["0.0.0.0/0"] }
-}
 
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+  
 ############################################
 # EC2 instance (private subnet)
 ############################################
@@ -116,15 +177,36 @@ resource "aws_lb" "alb" {
   load_balancer_type = "application"
   subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]   # 2 AZs!
   security_groups    = [aws_security_group.alb_sg.id]
+
+  lifecycle {
+    ignore_changes = [security_groups]
+  }
 }
+
+
 
 resource "aws_lb_target_group" "tg" {
   name        = "nginx-tg"
   port        = 80
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id
+
+  
   target_type = "instance"
+
+  # Explicit health check (must return 200)
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200-399"
+    interval            = 15
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 5
+  }
 }
+
+
 
 resource "aws_lb_target_group_attachment" "attachment" {
   target_group_arn = aws_lb_target_group.tg.arn
@@ -142,4 +224,28 @@ resource "aws_lb_listener" "listener" {
     target_group_arn = aws_lb_target_group.tg.arn
   }
 }
+
+
+############################################
+# Default listener rule for nginx-alb
+############################################
+resource "aws_lb_listener_rule" "default" {
+  listener_arn = aws_lb_listener.listener.arn
+  priority     = 1
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
+}
+
+
+
+
 
