@@ -1,22 +1,42 @@
-name: Terraform Apply
+name: Deploy Terraform
 
+# Trigger on pushes to main and after "Build & Push Docker"
 on:
+  push:
+    branches: [ main ]
   workflow_run:
     workflows: [ "Build & Push Docker" ]
     types: [ completed ]
 
 jobs:
-  deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+  terraform:
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
+
+    env:
+      TF_DATA_DIR: /tmp/terraform_data
+      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: hashicorp/setup-terraform@v2
-        with: { terraform_version: 1.5.0 }
-      - run: terraform init
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Init
         working-directory: terraform
-      - run: terraform apply -auto-approve
+        run: terraform init -input=false -upgrade -lock=false
+
+      - name: Terraform Validate
         working-directory: terraform
-        env:
-          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: terraform validate
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve -lock=false
