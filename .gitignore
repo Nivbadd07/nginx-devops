@@ -1,0 +1,9 @@
+# Ignore Terraform state and cache
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.*
+terraform/.terraform.lock.hcl
+
+# Ignore editor files
+*.swp
+*.bak
