@@ -52,4 +52,5 @@ Ensure your AWS CLI is configured and Terraform is installed.
 This diagram illustrates the infrastructure layout:
 
 
-![Uploading WhatsApp Image 2025-05-26 at 17.21.26_5f8ebfa9.jpg…]()
+![WhatsApp Image 2025-05-26 at 17 21 26_5f8ebfa9](https://github.com/user-attachments/assets/064f6870-d238-4023-bcf9-53fcfc337d7b)
+
