@@ -1,7 +1,3 @@
-Here's a cleaner and more professional version of your `README.md` with fewer emojis and a sharp tone, tailored for a job interview assignment:
-
----
-
 # NGINX DevOps Assignment – Job Interview Project
 
 This repository contains a complete deployment of a Dockerized NGINX web server on AWS, built as part of a DevOps job interview assignment.
