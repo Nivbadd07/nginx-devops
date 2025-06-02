@@ -1,9 +1,10 @@
 name: Deploy Terraform
 
-# Trigger on pushes to main and after "Build & Push Docker"
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'terraform/**'
   workflow_run:
     workflows: [ "Build & Push Docker" ]
     types: [ completed ]
@@ -31,7 +32,7 @@ jobs:
 
       - name: Terraform Init
         working-directory: terraform
-        run: terraform init -input=false -upgrade -lock=false
+        run: terraform init -input=false -upgrade
 
       - name: Terraform Validate
         working-directory: terraform
@@ -39,4 +40,4 @@ jobs:
 
       - name: Terraform Apply
         working-directory: terraform
-        run: terraform apply -auto-approve -lock=false
+        run: terraform apply -auto-approve
