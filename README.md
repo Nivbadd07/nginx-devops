@@ -32,8 +32,6 @@ The deployed application responds with the message:
 
 ---
 
----
-
 ## CI/CD Automation – GitHub Actions
 
 This project includes two GitHub Actions workflows that automate the build and deployment process.
