@@ -32,6 +32,38 @@ The deployed application responds with the message:
 
 ---
 
+---
+
+## CI/CD Automation – GitHub Actions
+
+This project includes two GitHub Actions workflows that automate the build and deployment process.
+
+### `build-push.yml`
+Triggered when changes are pushed to the `nginx-app/` directory on the `main` branch.
+
+**Steps:**
+- Builds the Docker image for the NGINX application.
+- Authenticates to DockerHub using GitHub Secrets.
+- Pushes the image to DockerHub under `nivbadasshboss/custom-nginx:latest`.
+
+### `deploy.yml`
+Triggered on every push to the `main` branch or upon successful completion of the `build-push.yml` workflow.
+
+**Steps:**
+- Checks out the repository.
+- Initializes and validates Terraform configuration.
+- Applies infrastructure changes using `terraform apply -auto-approve`.
+
+### Secrets Used
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+
+This CI/CD setup ensures consistent and automated deployment of both the Docker image and the infrastructure.
+
+---
+
 ## Deployment Guide (Optional)
 
 You can deploy this project in your own AWS account:
