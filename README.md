@@ -36,7 +36,7 @@ The deployed application responds with the message:
 
 This project includes two GitHub Actions workflows that automate the build and deployment process.
 
-### `build-push.yml`
+## `build-push.yml`
 Triggered when changes are pushed to the `nginx-app/` directory on the `main` branch.
 
 **Steps:**
@@ -44,7 +44,7 @@ Triggered when changes are pushed to the `nginx-app/` directory on the `main` br
 - Authenticates to DockerHub using GitHub Secrets.
 - Pushes the image to DockerHub under `nivbadasshboss/custom-nginx:latest`.
 
-### `deploy.yml`
+## `deploy.yml`
 Triggered on every push to the `main` branch or upon successful completion of the `build-push.yml` workflow.
 
 **Steps:**
@@ -52,7 +52,7 @@ Triggered on every push to the `main` branch or upon successful completion of th
 - Initializes and validates Terraform configuration.
 - Applies infrastructure changes using `terraform apply -auto-approve`.
 
-### Secrets Used
+## Secrets Used
 - `DOCKERHUB_USERNAME`
 - `DOCKERHUB_TOKEN`
 - `AWS_ACCESS_KEY_ID`
