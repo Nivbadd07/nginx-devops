@@ -8,12 +8,6 @@ The deployed application responds with the message:
 
 ---
 
-## Live Deployment
-
-**URL:** [http://nginx-alb-406501829.us-east-1.elb.amazonaws.com](http://nginx-alb-406501829.us-east-1.elb.amazonaws.com)
-
----
-
 ## Technologies Used
 
 * **Terraform** – Infrastructure as Code
